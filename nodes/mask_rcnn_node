@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import os
+import time
 import threading
 from Queue import Queue
 import numpy as np
+import scipy.misc
 
 import cv2
 from cv_bridge import CvBridge
@@ -48,6 +50,7 @@ class InferenceConfig(coco.CocoConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
+
 class MaskRCNNNode(object):
     def __init__(self):
         self._cv_bridge = CvBridge()
@@ -66,7 +69,12 @@ class MaskRCNNNode(object):
         if model_path == COCO_MODEL_PATH and not os.path.exists(COCO_MODEL_PATH):
             utils.download_trained_weights(COCO_MODEL_PATH)
 
+        self.st = time.time()
+        print("Loading weights...")
         self._model.load_weights(model_path, by_name=True)
+        print("Weights loaded.")
+        self.et = time.time()
+        print("Weight loading: ", self.et - self.st, "s")
 
         self._class_names = rospy.get_param('~class_names', CLASS_NAMES)
 
@@ -95,9 +103,19 @@ class MaskRCNNNode(object):
 
             if msg is not None:
                 np_image = self._cv_bridge.imgmsg_to_cv2(msg, 'bgr8')
+                h, w = np_image.shape[:2]
+                image_max = max(h, w)
+                scale = float(1024) / image_max
+                np_image = scipy.misc.imresize(
+                    np_image, (int(round(h * scale)), int(round(w * scale))))
+                print("np_image size: ", np_image.size())
 
                 # Run detection
-                results = self._model.detect([np_image], verbose=0)
+                self.st = time.time()
+                print("start detection.")
+                results = self._model.detect([np_image], verbose=1)
+                self.et = time.time()
+                print("finish detection: ", self.et - self.st, "s")
                 result = results[0]
                 result_msg = self._build_result_msg(msg, result)
                 self._result_pub.publish(result_msg)
@@ -107,7 +125,8 @@ class MaskRCNNNode(object):
                     vis_image = self._visualize(result, np_image)
                     cv_result = np.zeros(shape=vis_image.shape, dtype=np.uint8)
                     cv2.convertScaleAbs(vis_image, cv_result)
-                    image_msg = self._cv_bridge.cv2_to_imgmsg(cv_result, 'bgr8')
+                    image_msg = self._cv_bridge.cv2_to_imgmsg(
+                        cv_result, 'bgr8')
                     vis_pub.publish(image_msg)
 
             rate.sleep()
@@ -168,11 +187,13 @@ class MaskRCNNNode(object):
             self._last_msg = msg
             self._msg_lock.release()
 
+
 def main():
     rospy.init_node('mask_rcnn')
 
     node = MaskRCNNNode()
     node.run()
+
 
 if __name__ == '__main__':
     main()

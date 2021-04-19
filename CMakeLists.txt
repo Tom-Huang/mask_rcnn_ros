@@ -25,6 +25,7 @@ catkin_package(CATKIN_DEPENDS message_runtime)
 
 install(PROGRAMS
   nodes/mask_rcnn_node
+  nodes/kitti_publisher_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

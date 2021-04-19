@@ -1,0 +1,7 @@
+{
+    "python.pythonPath": "/home/hcg/anaconda3/envs/maskrcnn_py2/bin/python",
+    "python.autoComplete.extraPaths": [
+        "/home/hcg/hcg/master_thesis/maskrcnn_ws/devel/lib/python2.7/dist-packages",
+        "/opt/ros/melodic/lib/python2.7/dist-packages"
+    ]
+}
